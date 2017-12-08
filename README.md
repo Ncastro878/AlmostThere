@@ -3,7 +3,7 @@ Notifies a contact via text when you are close to their gps location
 
 This app is another result of hearing the advice "Build something you would find useful/solves a problem you have".
 
-How it functions: It will allow you to enter in a phone number or select a phone number from your list of contacts that corresponds to the person you will send a text notification to. You will then enter in the address where that person is located. You will then select a distance from a list of distance(".5 mile, 1 mile, 100 yards, etc"). You then press start. Your phone will make recurring location updates of your current location. When you are within range of the distance you selected to the address you entered, a text message will be sent to your friend letting them know approximately far away you are from them so they can be ready for your arrival and you don't have to handle your phone while driving."
+How it functions: It will allow you to enter in a phone number or select a phone number from your list of contacts that corresponds to the person you will send a text notification to. You will then enter in the address where that person is located. You will then select a distance from a list of distances(".5 mile, 1 mile, 100 yards, etc"). You then press start. Your phone will make recurring location updates of your current location. When you are within range of the distance you selected to the address you entered, a text message will be sent to your friend letting them know approximately how far away you are from them so they can be ready for your arrival and you don't have to handle your phone while driving."
 
 **< Background Info>**
 
