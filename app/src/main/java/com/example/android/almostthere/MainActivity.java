@@ -314,6 +314,8 @@ public class MainActivity extends AppCompatActivity {
      * https://gist.github.com/evandrix/7058235
      * All I can tel is that it uses Cursors, kinda like SqLite
      * TODO: learn ContentResolvers
+     * this link may come in handy:
+     * https://developer.android.com/training/basics/intents/result.html
      */
     private String retrieveContactNumber(Uri uriContact) {
         String contactNumber = null;
