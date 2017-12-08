@@ -20,3 +20,5 @@ Concepts/Libraries/Services used and learned building this:
 -Retrofit for Network calls to OpenCageData API
 
 -Permission Request for Dangerous permissions
+
+-Conscious Name Selection for functions/variables(Uncle Bob's Clean Code)
