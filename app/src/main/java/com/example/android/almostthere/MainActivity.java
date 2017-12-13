@@ -5,7 +5,9 @@ import android.content.DialogInterface;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
+import android.location.Location;
 import android.net.Uri;
+import android.os.Looper;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
@@ -23,6 +25,14 @@ import android.widget.Toast;
 import com.example.android.almostthere.api_results.Geometry;
 import com.example.android.almostthere.api_results.Result;
 import com.example.android.almostthere.api_results.Result_;
+import com.google.android.gms.location.LocationCallback;
+import com.google.android.gms.location.LocationRequest;
+import com.google.android.gms.location.LocationResult;
+import com.google.android.gms.location.LocationServices;
+import com.google.android.gms.location.LocationSettingsRequest;
+import com.google.android.gms.location.SettingsClient;
+
+import org.w3c.dom.Text;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -31,6 +41,8 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
+
+import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
 //TODO: make help page to show how to grant SEND_SMS permission from Settings.
 public class MainActivity extends AppCompatActivity {
@@ -47,11 +59,23 @@ public class MainActivity extends AppCompatActivity {
     private static final int MY_PERMISSIONS_READ_CONTACTS = 1;
     private static final int PICK_CONTACT_REQUEST = 2;
 
-    TextView mTextView;
+    TextView mTextView, myLocationTextView, friendsLocationTextView;
     EditText mEditText;
-    Button mButton;
+    Button convertAddressToGpsButton;
     Button sendTextButton;
     Button chooseContactButton;
+    Button startTripButton;
+
+    PermissionRequest mPermissionRequest;
+
+    private LocationRequest mLocationRequest;
+    private long UPDATE_INTERVAL = 10 * 1000;  /* 10 secs */
+    private long FASTEST_INTERVAL = 5000; /* 5 sec */
+    private float METERS_IN_A_MILE = 1609;
+
+    private Location friendsLocation = null;
+    private Location myCurrentLocation = new Location("");
+    private String friendsPhoneNumber;
 
     public interface OpenCageApiService {
         //okay, since I am encoding the string myself, I need to include encode=true.
@@ -67,13 +91,61 @@ public class MainActivity extends AppCompatActivity {
 
         intiViews();
         setButtonOnClickListeners();
+        mPermissionRequest = new PermissionRequest();
 
-        checkForSendSmsPermissions();
-        checkForReadContactsPermissions();
+        mPermissionRequest.checkForSendSmsPermissions(this);
+        mPermissionRequest.checkForReadContactsPermissions(this);
+        startLocationUpdates();
+
+    }
+
+    //uses this tutorial:
+    // https://github.com/codepath/android_guides/wiki/Retrieving-Location-with-LocationServices-API
+    private void startLocationUpdates() {
+        mLocationRequest = new LocationRequest();
+        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
+        mLocationRequest.setInterval(UPDATE_INTERVAL);
+        mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
+
+        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
+        builder.addLocationRequest(mLocationRequest);
+        LocationSettingsRequest locationSettingsRequest = builder.build();
+
+        SettingsClient settingsClient = LocationServices.getSettingsClient(this);
+        settingsClient.checkLocationSettings(locationSettingsRequest);
+
+        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
+            // TODO: Consider calling
+            //    ActivityCompat#requestPermissions
+            // here to request the missing permissions, and then overriding
+            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
+            //                                          int[] grantResults)
+            // to handle the case where the user grants the permission. See the documentation
+            // for ActivityCompat#requestPermissions for more details.
+            return;
+        }
+        getFusedLocationProviderClient(this).requestLocationUpdates(mLocationRequest,
+                new LocationCallback() {
+                    @Override
+                    public void onLocationResult(LocationResult locationResult) {
+                        onLocationChanged(locationResult.getLastLocation());
+                    }
+                }, Looper.myLooper());
+
+    }
+
+    private void onLocationChanged(Location lastLocation) {
+        Double lastLatitude = lastLocation.getLatitude();
+        Double lastLongitude = lastLocation.getLongitude();
+        myCurrentLocation.setLatitude(lastLatitude);
+        myCurrentLocation.setLongitude(lastLongitude);
+        String locationString = String.format("Your location: %f, %f",
+                myCurrentLocation.getLatitude(), myCurrentLocation.getLongitude());
+        myLocationTextView.setText(locationString);
     }
 
     private void setButtonOnClickListeners() {
-        mButton.setOnClickListener(new View.OnClickListener() {
+        convertAddressToGpsButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 String address = mEditText.getText().toString();
@@ -107,87 +179,47 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
+        startTripButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                if(friendsLocation != null ){
+                    Toast.makeText(MainActivity.this, "Trip has started", Toast.LENGTH_SHORT).show();
+                    checkDistanceBetweenYouAndFriend();
+                }else{
+                    Toast.makeText(MainActivity.this, "Locations are null!", Toast.LENGTH_SHORT).show();
+                }
+            }
+        });
+    }
+
+    private void checkDistanceBetweenYouAndFriend() {
+        float distanceBetween = myCurrentLocation.distanceTo(friendsLocation);
+        if (distanceBetween < METERS_IN_A_MILE){
+            Toast.makeText(this, "You are within distance of friends location.", Toast.LENGTH_SHORT).show();
+             sendTextMessage(friendsPhoneNumber);
+        }
+    }
+
+    private void sendTextMessage(String friendsPhoneNumber) {
+        String newMsg = "I am nearing RoadHouse";
+        Toast.makeText(this, "Notifying: " + friendsPhoneNumber, Toast.LENGTH_SHORT).show();
+        SmsManager smsManager = SmsManager.getDefault();
+        smsManager.sendTextMessage(myNumber, null, newMsg, null, null);
     }
 
     private void sendTextMessage() {
         SmsManager smsManager = SmsManager.getDefault();
         smsManager.sendTextMessage(myNumber, null, msg, null, null);
     }
-
-    private void checkForSendSmsPermissions() {
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.SEND_SMS)
-                != PackageManager.PERMISSION_GRANTED) {
-            if (ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.SEND_SMS)) {
-                showRequestSendSmsPermissionDialog();
-            } else {
-                requestSmsPermission();
-            }
-        } else {
-            Toast.makeText(this, "SendSMS permission has been granted!", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void checkForReadContactsPermissions() {
-        if(ContextCompat.checkSelfPermission(this, Manifest.permission.READ_CONTACTS)
-                != PackageManager.PERMISSION_GRANTED){
-            if(ActivityCompat.shouldShowRequestPermissionRationale(this,
-                    Manifest.permission.READ_CONTACTS)){
-                showRequestReadContactsPermissionDialog();
-            }else{
-                requestReadContactsPermission();
-            }
-        }else{
-            Toast.makeText(this, "Read Contacts permission granted! Thank you!", Toast.LENGTH_SHORT).show();
-        }
-    }
-
-    private void requestReadContactsPermission() {
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.READ_CONTACTS},
-                MY_PERMISSIONS_READ_CONTACTS);
-    }
-
-    private void showRequestReadContactsPermissionDialog() {
-        new AlertDialog.Builder(MainActivity.this)
-                .setMessage("Allow Read Contacts permission so we can get your contacts for you.")
-                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        requestReadContactsPermission();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .create()
-                .show();
-    }
-
-    public void requestSmsPermission() {
-        ActivityCompat.requestPermissions(this,
-                new String[]{Manifest.permission.SEND_SMS},
-                MY_PERMISSIONS_REQUEST_SEND_SMS);
-    }
-
-    private void showRequestSendSmsPermissionDialog() {
-        new AlertDialog.Builder(MainActivity.this)
-                .setMessage("Allow Send SMS permission so we can send text messages for you.")
-                .setPositiveButton("OK", new DialogInterface.OnClickListener() {
-                    @Override
-                    public void onClick(DialogInterface dialogInterface, int i) {
-                        requestSmsPermission();
-                    }
-                })
-                .setNegativeButton("Cancel", null)
-                .create()
-                .show();
-    }
-
     private void intiViews() {
         mTextView = (TextView) findViewById(R.id.text_view_1);
         mEditText = (EditText) findViewById(R.id.edit_text_view);
-        mButton = (Button) findViewById(R.id.search_button);
+        myLocationTextView = (TextView) findViewById(R.id.my_last_location_text_view);
+        friendsLocationTextView = (TextView) findViewById(R.id.friends_location_text_view);
+        convertAddressToGpsButton = (Button) findViewById(R.id.search_button);
         sendTextButton = (Button) findViewById(R.id.send_text_button);
         chooseContactButton = (Button) findViewById(R.id.choose_contact_button);
+        startTripButton = (Button) findViewById(R.id.start_trip_button);
     }
 
     private void fetchGpsCoordinatesFromAddress(String addressToQuery) {
@@ -239,6 +271,7 @@ public class MainActivity extends AppCompatActivity {
             Double latitude = geometryObject.getLat();
             Double longitude = geometryObject.getLng();
             postLatLongsIfExist(latitude, longitude);
+
         } else {
             Toast.makeText(MainActivity.this, "problem occurred", Toast.LENGTH_SHORT).show();
         }
@@ -257,7 +290,19 @@ public class MainActivity extends AppCompatActivity {
         if (latitude != null && longitude != null) {
             String latLngResult = String.format("Latitude:%f \n Longitude:%f", latitude, longitude);
             mTextView.setText(latLngResult);
+            friendsLocation = new Location("C");
+            friendsLocation.setLatitude(latitude);
+            friendsLocation.setLongitude(longitude);
+            setFriendLocationTextView(friendsLocation);
         }
+    }
+
+    private void setFriendLocationTextView(Location friendsLocation) {
+        double latitude = friendsLocation.getLatitude();
+        double longitude = friendsLocation.getLongitude();
+        String locationString = String.format("Friends Location: %f, %f",
+                latitude, longitude);
+        friendsLocationTextView.setText(locationString);
     }
 
     @Override
@@ -296,6 +341,7 @@ public class MainActivity extends AppCompatActivity {
             String msg = String.format("ContactName: %s \nContact Number: %s",
                     contactNameRetrieved, phoneNumberRetrieved);
             mTextView.setText(msg);
+            friendsPhoneNumber = phoneNumberRetrieved;
         }
     }
 
