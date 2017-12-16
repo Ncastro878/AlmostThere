@@ -1,25 +1,15 @@
 package com.example.android.almostthere;
 
 import android.Manifest;
-import android.app.PendingIntent;
-import android.content.ComponentName;
-import android.content.Context;
-import android.content.DialogInterface;
 import android.content.Intent;
-import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
 import android.net.Uri;
-import android.os.IBinder;
-import android.os.Looper;
 import android.provider.ContactsContract;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.content.ContextCompat;
-import android.support.v7.app.AlertDialog;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.telephony.SmsManager;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
@@ -30,14 +20,6 @@ import android.widget.Toast;
 import com.example.android.almostthere.api_results.Geometry;
 import com.example.android.almostthere.api_results.Result;
 import com.example.android.almostthere.api_results.Result_;
-import com.google.android.gms.location.LocationCallback;
-import com.google.android.gms.location.LocationRequest;
-import com.google.android.gms.location.LocationResult;
-import com.google.android.gms.location.LocationServices;
-import com.google.android.gms.location.LocationSettingsRequest;
-import com.google.android.gms.location.SettingsClient;
-
-import org.w3c.dom.Text;
 
 import retrofit2.Call;
 import retrofit2.Callback;
@@ -47,76 +29,46 @@ import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
 
-import static android.icu.lang.UCharacter.GraphemeClusterBreak.L;
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
-//TODO: make help page to show how to grant SEND_SMS permission from Settings.
 public class MainActivity extends AppCompatActivity {
 
     final String MY_API_KEY = "f8bfb68fee434cfd950601fb5152681b";
     final String BASE_URL = "https://api.opencagedata.com/geocode/v1/";
-    final String EIGHT_ST_COFFEE = "710 8th St, Wichita Falls, TX 76301, United States";
     final String TAG = "AlmostThereApp";
-
-    String msg = "this is only a test";
-    String myNumber = "940-257-4628";
 
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 0;
     private static final int MY_PERMISSIONS_READ_SMS = 9;
     private static final int MY_PERMISSIONS_READ_CONTACTS = 1;
     private static final int PICK_CONTACT_REQUEST = 2;
 
-    TextView mTextView, myLocationTextView, friendsLocationTextView;
+    TextView mTextView;
     EditText mEditText;
-    Button convertAddressToGpsButton;
-    Button sendTextButton;
-    Button chooseContactButton;
-    Button startTripButton;
+    Button convertAddressToGpsButton, chooseContactButton, startTripButton;
 
     private Location friendsLocation = null;
-    PermissionRequest mPermissionRequest;
     private String friendsPhoneNumber;
-
-    boolean mBound;
+    private String friendsName;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
 
-        intiViews();
+        initTextViewsAndButtons();
         setButtonOnClickListeners();
-        mPermissionRequest = new PermissionRequest();
+        PermissionRequest mPermissionRequest = new PermissionRequest();
         mPermissionRequest.checkForSendSmsPermissions(this);
         mPermissionRequest.checkForReadSmsPermissions(this);
         mPermissionRequest.checkForReadContactsPermissions(this);
     }
 
-    @Override
-    protected void onStart() {
-        super.onStart();
-        /** Bounded Service code
-         *
-        Intent myIntent = new Intent(this, TextMessageIntentService.class);
-        bindService(myIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
-         **/
-    }
-
-    @Override
-    protected void onStop() {
-        super.onStop();
-        /** Bounded Service code
-        unbindService(mServiceConnection);
-         */
-        mBound = false;
-    }
-
-    /** This may prove useless now since I'm using a regular Service, not IntentService**/
-    private void sendIntentWithFriendsLocationToService(Location location){
-        Intent myIntent = new Intent(this, TextMessageIntentService.class);
-        myIntent.putExtra("friendLocation", location);
-        myIntent.setAction("start-location-updates");
-        startService(myIntent);
+    private void initTextViewsAndButtons() {
+        mTextView = (TextView) findViewById(R.id.text_view_1);
+        mEditText = (EditText) findViewById(R.id.edit_text_view);
+        convertAddressToGpsButton = (Button) findViewById(R.id.search_button);
+        chooseContactButton = (Button) findViewById(R.id.choose_contact_button);
+        startTripButton = (Button) findViewById(R.id.start_trip_button);
     }
 
     private void setButtonOnClickListeners() {
@@ -124,23 +76,9 @@ public class MainActivity extends AppCompatActivity {
             @Override
             public void onClick(View view) {
                 String address = mEditText.getText().toString();
-                if (address == null || address == "") return;
-                //Lets test out 8th st coffee first then enter our own address.
+                if ( address.equals("")) return;
                 fetchGpsCoordinatesFromAddress(address);
-                //fetchGpsCoordinatesFromAddress(EIGHT_ST_COFFEE);
-            }
-        });
-        sendTextButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                //checkForSendSmsPermissions();
-                if(ContextCompat.checkSelfPermission(view.getContext(), Manifest.permission.SEND_SMS)
-                        != PackageManager.PERMISSION_GRANTED){
-                    Toast.makeText(MainActivity.this, "We need SendSMS permission!", Toast.LENGTH_SHORT).show();
-                }else{
-                    sendTextMessage();
-                }
-            }
+             }
         });
         chooseContactButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -159,46 +97,21 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if(friendsLocation != null ){
                     Toast.makeText(MainActivity.this, "Trip has started", Toast.LENGTH_SHORT).show();
-                    // this method looks unnecessary now
-                    //sendIntentWithFriendsLocationToService(friendsLocation);
-                    /*  Instead lets call the service directly now, since it should be instantiated*/
-
-                    /** bounded service code
-                    mService.setFriendsLocation(friendsLocation);
-                    mService.startLocationUpdates();
-                     */
                     setUpAndStartForegroundService();
-                    startTextMsgBroadcastReceiver();
                 }else{
                     Toast.makeText(MainActivity.this, "Locations are null!", Toast.LENGTH_SHORT).show();
                 }
             }
         });
     }
-    //TODO: make the broadcast receiver for this.
-    private void startTextMsgBroadcastReceiver() {
-    }
 
     private void setUpAndStartForegroundService() {
         Intent myIntent = new Intent(this, TextMessageIntentService.class);
         myIntent.setAction(TextMessageIntentService.START_LOCATION_UPDATES);
         myIntent.putExtra(TextMessageIntentService.FRIENDS_LOCATION, friendsLocation);
+        myIntent.putExtra(TextMessageIntentService.FRIENDS_PHONE_NUMBER, friendsPhoneNumber);
+        myIntent.putExtra(TextMessageIntentService.FRIENDS_NAME, friendsName);
         startService(myIntent);
-    }
-
-    private void sendTextMessage() {
-        SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(myNumber, null, msg, null, null);
-    }
-    private void intiViews() {
-        mTextView = (TextView) findViewById(R.id.text_view_1);
-        mEditText = (EditText) findViewById(R.id.edit_text_view);
-        myLocationTextView = (TextView) findViewById(R.id.my_last_location_text_view);
-        friendsLocationTextView = (TextView) findViewById(R.id.friends_location_text_view);
-        convertAddressToGpsButton = (Button) findViewById(R.id.search_button);
-        sendTextButton = (Button) findViewById(R.id.send_text_button);
-        chooseContactButton = (Button) findViewById(R.id.choose_contact_button);
-        startTripButton = (Button) findViewById(R.id.start_trip_button);
     }
 
     private void fetchGpsCoordinatesFromAddress(String addressToQuery) {
@@ -217,10 +130,9 @@ public class MainActivity extends AppCompatActivity {
                     Log.v(TAG, "Request Url: " + call.request().url().toString());
                 } else {
                     loadResponse(response);
-                    Log.v(TAG, "Url2 called is:" + call.request().url().toString());
+                    Log.v(TAG, "Url called is:" + call.request().url().toString());
                 }
             }
-
             @Override
             public void onFailure(Call<Result> call, Throwable t) {
                 Toast.makeText(MainActivity.this, "Failure!", Toast.LENGTH_SHORT).show();
@@ -250,7 +162,6 @@ public class MainActivity extends AppCompatActivity {
             Double latitude = geometryObject.getLat();
             Double longitude = geometryObject.getLng();
             postLatLongsIfExist(latitude, longitude);
-
         } else {
             Toast.makeText(MainActivity.this, "problem occurred", Toast.LENGTH_SHORT).show();
         }
@@ -272,16 +183,7 @@ public class MainActivity extends AppCompatActivity {
             friendsLocation = new Location("C");
             friendsLocation.setLatitude(latitude);
             friendsLocation.setLongitude(longitude);
-            setFriendLocationTextView(friendsLocation);
         }
-    }
-
-    private void setFriendLocationTextView(Location friendsLocation) {
-        double latitude = friendsLocation.getLatitude();
-        double longitude = friendsLocation.getLongitude();
-        String locationString = String.format("Friends Location: %f, %f",
-                latitude, longitude);
-        friendsLocationTextView.setText(locationString);
     }
 
     @Override
@@ -296,8 +198,8 @@ public class MainActivity extends AppCompatActivity {
                     Toast.makeText(getApplicationContext(),
                             "Permission failed to be granted. Sad Panda face.",
                             Toast.LENGTH_LONG).show();
-                    return;
                 }
+                    return;
             }
             case MY_PERMISSIONS_READ_CONTACTS: {
                 if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
@@ -330,6 +232,7 @@ public class MainActivity extends AppCompatActivity {
                     contactNameRetrieved, phoneNumberRetrieved);
             mTextView.setText(msg);
             friendsPhoneNumber = phoneNumberRetrieved;
+            friendsName = contactNameRetrieved;
         }
     }
 
@@ -363,8 +266,6 @@ public class MainActivity extends AppCompatActivity {
         cursorId.close();
         Log.v(TAG, "Contact ID: " + contactId);
         //using the ContactId we now get the contact phone number
-        //TODO: It currently only retrieves numbers saved as "mobile" in the contact.
-        //TODO: Have it check for "home" and probably "work" also. 
         Cursor cursorPhone = getContentResolver().query(
                 ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
                 new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
@@ -374,9 +275,7 @@ public class MainActivity extends AppCompatActivity {
                         /*this returns MOBILE number, not WORK, or HOME, which is fine
                         because only MOBILE numbers can receive texts. */
                         ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE,
-
-                new String[]{contactId},
-                null);
+                new String[]{contactId}, null);
         if(cursorPhone.moveToFirst()){
             contactNumber = cursorPhone
                     .getString(cursorPhone.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
@@ -385,30 +284,10 @@ public class MainActivity extends AppCompatActivity {
         return contactNumber;
     }
 
-    public interface OpenCageApiService {
-        //okay, since I am encoding the string myself, I need to include encode=true.
+    interface OpenCageApiService {
+        //okay, since I am encoding the string myself, I need to include "encode = true".
         @GET("json")
         Call<Result> getGeoCodedLocation(@Query("key") String apiKey,
                                          @Query(value = "q", encoded = true) String addressToQuery);
     }
-
-    /** Bounded Service code.
-     *
-      TextMessageIntentService mService;
-     private ServiceConnection mServiceConnection = new ServiceConnection() {
-        @Override
-        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
-            TextMessageIntentService.LocalBinder binder = (TextMessageIntentService.LocalBinder) iBinder;
-            mService = binder.getService();
-            mBound = true;
-            //here we communicate with the service.
-        }
-
-        @Override
-        public void onServiceDisconnected(ComponentName componentName) {
-            mService = null;
-            mBound = false;
-        }
-    };
-     */
 }
