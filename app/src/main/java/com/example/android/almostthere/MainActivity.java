@@ -1,12 +1,17 @@
 package com.example.android.almostthere;
 
 import android.Manifest;
+import android.app.PendingIntent;
+import android.content.ComponentName;
+import android.content.Context;
 import android.content.DialogInterface;
 import android.content.Intent;
+import android.content.ServiceConnection;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
 import android.net.Uri;
+import android.os.IBinder;
 import android.os.Looper;
 import android.provider.ContactsContract;
 import android.support.v4.app.ActivityCompat;
@@ -42,6 +47,7 @@ import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
 
+import static android.icu.lang.UCharacter.GraphemeClusterBreak.L;
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
 //TODO: make help page to show how to grant SEND_SMS permission from Settings.
@@ -52,10 +58,11 @@ public class MainActivity extends AppCompatActivity {
     final String EIGHT_ST_COFFEE = "710 8th St, Wichita Falls, TX 76301, United States";
     final String TAG = "AlmostThereApp";
 
-    String myNumber = "940-257-4628";
     String msg = "this is only a test";
+    String myNumber = "940-257-4628";
 
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 0;
+    private static final int MY_PERMISSIONS_READ_SMS = 9;
     private static final int MY_PERMISSIONS_READ_CONTACTS = 1;
     private static final int PICK_CONTACT_REQUEST = 2;
 
@@ -66,23 +73,11 @@ public class MainActivity extends AppCompatActivity {
     Button chooseContactButton;
     Button startTripButton;
 
-    PermissionRequest mPermissionRequest;
-
-    private LocationRequest mLocationRequest;
-    private long UPDATE_INTERVAL = 10 * 1000;  /* 10 secs */
-    private long FASTEST_INTERVAL = 5000; /* 5 sec */
-    private float METERS_IN_A_MILE = 1609;
-
     private Location friendsLocation = null;
-    private Location myCurrentLocation = new Location("");
+    PermissionRequest mPermissionRequest;
     private String friendsPhoneNumber;
 
-    public interface OpenCageApiService {
-        //okay, since I am encoding the string myself, I need to include encode=true.
-        @GET("json")
-        Call<Result> getGeoCodedLocation(@Query("key") String apiKey,
-                                         @Query(value = "q", encoded = true) String addressToQuery);
-    }
+    boolean mBound;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -92,56 +87,36 @@ public class MainActivity extends AppCompatActivity {
         intiViews();
         setButtonOnClickListeners();
         mPermissionRequest = new PermissionRequest();
-
         mPermissionRequest.checkForSendSmsPermissions(this);
+        mPermissionRequest.checkForReadSmsPermissions(this);
         mPermissionRequest.checkForReadContactsPermissions(this);
-        startLocationUpdates();
-
     }
 
-    //uses this tutorial:
-    // https://github.com/codepath/android_guides/wiki/Retrieving-Location-with-LocationServices-API
-    private void startLocationUpdates() {
-        mLocationRequest = new LocationRequest();
-        mLocationRequest.setPriority(LocationRequest.PRIORITY_HIGH_ACCURACY);
-        mLocationRequest.setInterval(UPDATE_INTERVAL);
-        mLocationRequest.setFastestInterval(FASTEST_INTERVAL);
-
-        LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
-        builder.addLocationRequest(mLocationRequest);
-        LocationSettingsRequest locationSettingsRequest = builder.build();
-
-        SettingsClient settingsClient = LocationServices.getSettingsClient(this);
-        settingsClient.checkLocationSettings(locationSettingsRequest);
-
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED && ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            // TODO: Consider calling
-            //    ActivityCompat#requestPermissions
-            // here to request the missing permissions, and then overriding
-            //   public void onRequestPermissionsResult(int requestCode, String[] permissions,
-            //                                          int[] grantResults)
-            // to handle the case where the user grants the permission. See the documentation
-            // for ActivityCompat#requestPermissions for more details.
-            return;
-        }
-        getFusedLocationProviderClient(this).requestLocationUpdates(mLocationRequest,
-                new LocationCallback() {
-                    @Override
-                    public void onLocationResult(LocationResult locationResult) {
-                        onLocationChanged(locationResult.getLastLocation());
-                    }
-                }, Looper.myLooper());
-
+    @Override
+    protected void onStart() {
+        super.onStart();
+        /** Bounded Service code
+         *
+        Intent myIntent = new Intent(this, TextMessageIntentService.class);
+        bindService(myIntent, mServiceConnection, Context.BIND_AUTO_CREATE);
+         **/
     }
 
-    private void onLocationChanged(Location lastLocation) {
-        Double lastLatitude = lastLocation.getLatitude();
-        Double lastLongitude = lastLocation.getLongitude();
-        myCurrentLocation.setLatitude(lastLatitude);
-        myCurrentLocation.setLongitude(lastLongitude);
-        String locationString = String.format("Your location: %f, %f",
-                myCurrentLocation.getLatitude(), myCurrentLocation.getLongitude());
-        myLocationTextView.setText(locationString);
+    @Override
+    protected void onStop() {
+        super.onStop();
+        /** Bounded Service code
+        unbindService(mServiceConnection);
+         */
+        mBound = false;
+    }
+
+    /** This may prove useless now since I'm using a regular Service, not IntentService**/
+    private void sendIntentWithFriendsLocationToService(Location location){
+        Intent myIntent = new Intent(this, TextMessageIntentService.class);
+        myIntent.putExtra("friendLocation", location);
+        myIntent.setAction("start-location-updates");
+        startService(myIntent);
     }
 
     private void setButtonOnClickListeners() {
@@ -152,7 +127,7 @@ public class MainActivity extends AppCompatActivity {
                 if (address == null || address == "") return;
                 //Lets test out 8th st coffee first then enter our own address.
                 fetchGpsCoordinatesFromAddress(address);
-                //fetchGpsCoordsFromAddress(EIGHT_ST_COFFEE);
+                //fetchGpsCoordinatesFromAddress(EIGHT_ST_COFFEE);
             }
         });
         sendTextButton.setOnClickListener(new View.OnClickListener() {
@@ -184,27 +159,31 @@ public class MainActivity extends AppCompatActivity {
             public void onClick(View view) {
                 if(friendsLocation != null ){
                     Toast.makeText(MainActivity.this, "Trip has started", Toast.LENGTH_SHORT).show();
-                    checkDistanceBetweenYouAndFriend();
+                    // this method looks unnecessary now
+                    //sendIntentWithFriendsLocationToService(friendsLocation);
+                    /*  Instead lets call the service directly now, since it should be instantiated*/
+
+                    /** bounded service code
+                    mService.setFriendsLocation(friendsLocation);
+                    mService.startLocationUpdates();
+                     */
+                    setUpAndStartForegroundService();
+                    startTextMsgBroadcastReceiver();
                 }else{
                     Toast.makeText(MainActivity.this, "Locations are null!", Toast.LENGTH_SHORT).show();
                 }
             }
         });
     }
-
-    private void checkDistanceBetweenYouAndFriend() {
-        float distanceBetween = myCurrentLocation.distanceTo(friendsLocation);
-        if (distanceBetween < METERS_IN_A_MILE){
-            Toast.makeText(this, "You are within distance of friends location.", Toast.LENGTH_SHORT).show();
-             sendTextMessage(friendsPhoneNumber);
-        }
+    //TODO: make the broadcast receiver for this.
+    private void startTextMsgBroadcastReceiver() {
     }
 
-    private void sendTextMessage(String friendsPhoneNumber) {
-        String newMsg = "I am nearing RoadHouse";
-        Toast.makeText(this, "Notifying: " + friendsPhoneNumber, Toast.LENGTH_SHORT).show();
-        SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(myNumber, null, newMsg, null, null);
+    private void setUpAndStartForegroundService() {
+        Intent myIntent = new Intent(this, TextMessageIntentService.class);
+        myIntent.setAction(TextMessageIntentService.START_LOCATION_UPDATES);
+        myIntent.putExtra(TextMessageIntentService.FRIENDS_LOCATION, friendsLocation);
+        startService(myIntent);
     }
 
     private void sendTextMessage() {
@@ -329,6 +308,15 @@ public class MainActivity extends AppCompatActivity {
                 }
                 return;
             }
+            case MY_PERMISSIONS_READ_SMS: {
+                if(grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED){
+                    Toast.makeText(this, "Thank you for permission. Request a contact number again",
+                            Toast.LENGTH_SHORT).show();
+                }else{
+                    Toast.makeText(this,"Read SMS permission not granted. Sad!", Toast.LENGTH_SHORT).show();
+                }
+                return;
+            }
         }
     }
 
@@ -358,7 +346,7 @@ public class MainActivity extends AppCompatActivity {
     /**
      * Stole this function from a github example. It works!
      * https://gist.github.com/evandrix/7058235
-     * All I can tel is that it uses Cursors, kinda like SqLite
+     * All I can tell is that it uses Cursors, kinda like SqLite
      * TODO: learn ContentResolvers
      * this link may come in handy:
      * https://developer.android.com/training/basics/intents/result.html
@@ -383,6 +371,8 @@ public class MainActivity extends AppCompatActivity {
                 //this looks similar to a SQL statement
                 ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ? AND " +
                         ContactsContract.CommonDataKinds.Phone.TYPE + " = " +
+                        /*this returns MOBILE number, not WORK, or HOME, which is fine
+                        because only MOBILE numbers can receive texts. */
                         ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE,
 
                 new String[]{contactId},
@@ -394,4 +384,31 @@ public class MainActivity extends AppCompatActivity {
         cursorPhone.close();
         return contactNumber;
     }
+
+    public interface OpenCageApiService {
+        //okay, since I am encoding the string myself, I need to include encode=true.
+        @GET("json")
+        Call<Result> getGeoCodedLocation(@Query("key") String apiKey,
+                                         @Query(value = "q", encoded = true) String addressToQuery);
+    }
+
+    /** Bounded Service code.
+     *
+      TextMessageIntentService mService;
+     private ServiceConnection mServiceConnection = new ServiceConnection() {
+        @Override
+        public void onServiceConnected(ComponentName componentName, IBinder iBinder) {
+            TextMessageIntentService.LocalBinder binder = (TextMessageIntentService.LocalBinder) iBinder;
+            mService = binder.getService();
+            mBound = true;
+            //here we communicate with the service.
+        }
+
+        @Override
+        public void onServiceDisconnected(ComponentName componentName) {
+            mService = null;
+            mBound = false;
+        }
+    };
+     */
 }
