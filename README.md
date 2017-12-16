@@ -15,10 +15,14 @@ This was my very first app idea and when I first tried to build it after 2 days 
 
 Concepts/Libraries/Services used and learned building this:
 
--OpenCageData GeoCoder service
+-OpenCageData GeoCoder API service
 
 -Retrofit for Network calls to OpenCageData API
 
 -Permission Request for Dangerous permissions
 
 -Conscious Name Selection for functions/variables(Uncle Bob's Clean Code)
+
+-Location Updates 
+
+-Using a bounded service from which to run the Location Requests
