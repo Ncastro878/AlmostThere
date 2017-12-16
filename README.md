@@ -19,10 +19,17 @@ Concepts/Libraries/Services used and learned building this:
 
 -Retrofit for Network calls to OpenCageData API
 
--Permission Request for Dangerous permissions
+-Permission Request for Dangerous permissions(Read/Send SMS, Location Requests, Read Contacts)
 
 -Conscious Name Selection for functions/variables(Uncle Bob's Clean Code)
 
 -Location Updates 
 
--Using a bounded service from which to run the Location Requests
+-~Using a bounded service from which to run the Location Requests~
+
+-Using a foreground service to run Location updates/requests(on Main Thread), since location updates on background threads are heavily
+restricted with new Android Oreo update.
+
+-Broadcast Receiver to read then send automatic text message replies with distance
+
+-Notification Manager and notifications. 
