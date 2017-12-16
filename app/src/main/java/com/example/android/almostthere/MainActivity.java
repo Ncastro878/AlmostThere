@@ -31,6 +31,9 @@ import retrofit2.http.Query;
 
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 
+//TODO: Can cancel foreground service via PendingIntent from the Activity(i.e. triggered by button)
+//The service will not be restarted, it will just read the new intent, so we can send it
+// a STOP_SERVICE_FROM_FOREGROUND action in the intent.
 public class MainActivity extends AppCompatActivity {
 
     final String MY_API_KEY = "f8bfb68fee434cfd950601fb5152681b";

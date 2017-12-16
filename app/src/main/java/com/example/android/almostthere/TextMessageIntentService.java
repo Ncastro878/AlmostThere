@@ -182,7 +182,7 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
 
     private void sendTextMessage(String friendsPhoneNumber) {
         Log.v(TAG, "Sending text message to friend: " + friendObject.getName());
-        String newMsg = "I am nearing your location";
+        String newMsg = "I am nearing your location. (Now ending trip and automatic text notifications)";
         Toast.makeText(this, "Notifying: " + friendsPhoneNumber, Toast.LENGTH_SHORT).show();
         SmsManager smsManager = SmsManager.getDefault();
         smsManager.sendTextMessage(myNumber, null, newMsg, null, null);
