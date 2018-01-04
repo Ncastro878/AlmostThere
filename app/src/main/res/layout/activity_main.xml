@@ -4,63 +4,10 @@
     xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="@drawable/background_img"
     tools:context="com.example.android.almostthere.MainActivity">
-
-    <TextView
-        android:id="@+id/text_view_1"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Gps coordinates will show here"
-        android:textSize="20dp"
-        android:textStyle="bold"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent" />
-
-    <EditText
-        android:id="@+id/edit_text_view"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:layout_marginLeft="8dp"
-        android:layout_marginRight="7dp"
-        android:layout_marginTop="8dp"
-        android:hint="Enter address here"
-        app:layout_constraintBottom_toTopOf="@+id/text_view_1"
-        app:layout_constraintHorizontal_bias="0.497"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toTopOf="parent"
-        app:layout_constraintVertical_bias="0.837" />
-
-    <Button
-        android:id="@+id/search_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginBottom="8dp"
-        android:layout_marginLeft="8dp"
-        android:layout_marginRight="8dp"
-        android:layout_marginTop="8dp"
-        android:text="Convert address into GPS coordinates"
-        app:layout_constraintBottom_toBottomOf="parent"
-        app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintRight_toRightOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/text_view_1"
-        app:layout_constraintVertical_bias="0.072" />
-
-    <Button
-        android:id="@+id/choose_contact_button"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:text="Choose contact phone number"
-        android:layout_marginRight="8dp"
-        app:layout_constraintRight_toRightOf="parent"
-        android:layout_marginLeft="8dp"
-        app:layout_constraintLeft_toLeftOf="parent"
-        android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/search_button" />
-
+    <!--background_img.jpg was placed in folder "main/res/drawable-nodpi"
+        in order for img to not overflow memory -->
     <Button
         android:id="@+id/start_trip_button"
         android:layout_width="wrap_content"
@@ -70,9 +17,97 @@
         app:layout_constraintRight_toRightOf="parent"
         android:layout_marginLeft="8dp"
         app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintHorizontal_bias="0.501"
         android:layout_marginTop="8dp"
-        app:layout_constraintTop_toBottomOf="@+id/choose_contact_button"
+        app:layout_constraintTop_toBottomOf="@+id/enter_destination_info_button"
+        app:layout_constraintBottom_toBottomOf="parent"
         android:layout_marginBottom="8dp"
-        app:layout_constraintBottom_toTopOf="@+id/friends_location_text_view" />
+        app:layout_constraintVertical_bias="0.837"
+        style="@style/Widget.AppCompat.Button.Colored"/>
+
+    <Button
+        android:id="@+id/enter_rider_info_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enter Rider Information"
+        android:layout_marginRight="8dp"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toTopOf="parent"
+        android:layout_marginTop="8dp"
+        app:layout_constraintHorizontal_bias="0.503"
+        app:layout_constraintBottom_toBottomOf="parent"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintVertical_bias="0.017"
+        style="@style/Widget.AppCompat.Button.Colored"/>
+
+    <Button
+        android:id="@+id/enter_destination_info_button"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Enter Address Information"
+        android:layout_marginRight="8dp"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_marginTop="8dp"
+        style="@style/Widget.AppCompat.Button.Colored"
+        app:layout_constraintTop_toBottomOf="@+id/enter_rider_info_button"
+        app:layout_constraintHorizontal_bias="0.511" />
+
+    <TextView
+        android:id="@+id/address_info_text_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:textColor="@android:color/white"
+        android:text="[ADDRESS INFO WILL GO HERE]"
+        android:layout_marginRight="8dp"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginLeft="8dp"
+        android:textStyle="bold"
+        android:textAlignment="center"
+        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/enter_destination_info_button"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/start_trip_button"
+        app:layout_constraintHorizontal_bias="0.43"
+        app:layout_constraintVertical_bias="0.477" />
+
+    <TextView
+        android:id="@+id/phone_info_text_view"
+        android:layout_width="wrap_content"
+        android:textColor="@android:color/white"
+        android:text="[RIDER INFO WILL GO HERE]"
+        android:textStyle="bold"
+        android:textAlignment="center"
+        android:layout_height="wrap_content"
+        android:layout_marginRight="8dp"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginLeft="8dp"
+        app:layout_constraintLeft_toLeftOf="parent"
+        android:layout_marginBottom="8dp"
+        app:layout_constraintBottom_toTopOf="@+id/start_trip_button"
+        android:layout_marginTop="8dp"
+        app:layout_constraintTop_toBottomOf="@+id/address_info_text_view"
+        app:layout_constraintVertical_bias="0.057"
+        app:layout_constraintHorizontal_bias="0.436" />
+
+    <ImageView
+        android:id="@+id/question_mark_image_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        app:srcCompat="@mipmap/help_icon"
+        app:layout_constraintLeft_toRightOf="@+id/phone_info_text_view"
+        android:layout_marginLeft="5dp"
+        android:layout_marginRight="5dp"
+        app:layout_constraintRight_toRightOf="parent"
+        android:layout_marginTop="5dp"
+        app:layout_constraintTop_toBottomOf="@+id/enter_destination_info_button"
+        android:layout_marginBottom="5dp"
+        app:layout_constraintBottom_toTopOf="@+id/start_trip_button"
+        app:layout_constraintHorizontal_bias="1.0"
+        app:layout_constraintVertical_bias="0.473" />
 
 </android.support.constraint.ConstraintLayout>

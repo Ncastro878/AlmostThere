@@ -10,8 +10,6 @@ import android.content.pm.PackageManager;
 import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.location.Location;
-import android.os.Binder;
-import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.provider.Telephony;
@@ -48,9 +46,10 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
     public static String STOP_SERVICE_FROM_FOREGROUND = "stopFromForeground";
     public static String FRIENDS_LOCATION = "friendsLocation";
     public static String FRIENDS_PHONE_NUMBER = "friendsPhoneNumber";
+    public static String FRIENDS_ADDRESS = "friendsAddress";
     public static String FRIENDS_NAME = "friendsName";
     private static final String CHANNEL_ID = "channel_01";
-    private FriendObject friendObject = new FriendObject();
+    private FriendObject myFriendObject = new FriendObject();
 
     private Location myCurrentLocation = new Location("");
     private static final int NOTIFICATION_ID = 123456;
@@ -81,7 +80,7 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
 
     private void initAndRegisterTextMsgReceiver() {
         mTextMsgBroadcastReceiver =
-                new TextMessageBroadcastReceiver(friendObject, this);
+                new TextMessageBroadcastReceiver(myFriendObject, this);
         IntentFilter filter = new IntentFilter(Telephony.Sms.Intents.SMS_RECEIVED_ACTION);
         registerReceiver(mTextMsgBroadcastReceiver, filter);
     }
@@ -93,7 +92,8 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
             Location location = intent.getParcelableExtra(FRIENDS_LOCATION);
             String phoneNumber = intent.getStringExtra(FRIENDS_PHONE_NUMBER);
             String name = intent.getStringExtra(FRIENDS_NAME);
-            createFriendObject(location, name, phoneNumber);
+            String address = intent.getStringExtra(FRIENDS_ADDRESS);
+            initializeMyFriendObject(location, name, phoneNumber, address);
             initAndRegisterTextMsgReceiver();
             startLocationUpdates();
             Toast.makeText(this, "Service started!", Toast.LENGTH_SHORT).show();
@@ -104,10 +104,11 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
         return START_STICKY;
     }
 
-    private void createFriendObject(Location location, String name, String phoneNumber) {
-        friendObject.setLocation(location);
-        friendObject.setName(name);
-        friendObject.setPhoneNumber(phoneNumber);
+    private void initializeMyFriendObject(Location location, String name, String phoneNumber, String address){
+        myFriendObject.setLocation(location);
+        myFriendObject.setName(name);
+        myFriendObject.setPhoneNumber(phoneNumber);
+        myFriendObject.setAddress(address);
     }
 
     public void startLocationUpdates() {
@@ -120,7 +121,7 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
     // https://github.com/codepath/android_guides/wiki/Retrieving-Location-with-LocationServices-API
     public void startLocationUpdatesFromInside() {
         Log.v(TAG, "Second call to location updates");
-        Log.v(TAG, "Friends Location latitude is: " + friendObject.getLocation().getLatitude());
+        Log.v(TAG, "Friends Location latitude is: " + myFriendObject.getLocation().getLatitude());
 
         mLocationRequest = createLocationRequest();
         LocationSettingsRequest.Builder builder = new LocationSettingsRequest.Builder();
@@ -165,27 +166,27 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
         String locationString = String.format("Your location: %f, %f",
                 myCurrentLocation.getLatitude(), myCurrentLocation.getLongitude());
         Log.v(TAG, locationString);
-        if (friendObject.getLocation() != null) {
+        if (myFriendObject.getLocation() != null) {
             checkDistanceBetweenYouAndFriend();
         }
     }
 
     private void checkDistanceBetweenYouAndFriend() {
         Log.v(TAG, "Checking distance between you and friend. ");
-        float distanceBetween = myCurrentLocation.distanceTo(friendObject.getLocation());
+        float distanceBetween = myCurrentLocation.distanceTo(myFriendObject.getLocation());
         lastCalculatedDistance = distanceBetween;
         if (distanceBetween < METERS_IN_A_MILE) {
             Toast.makeText(this, "You are within distance of friends location.", Toast.LENGTH_SHORT).show();
-            sendTextMessage(friendObject.getPhoneNumber());
+            sendTextMessageToFriend(myFriendObject.getPhoneNumber());
         }
     }
 
-    private void sendTextMessage(String friendsPhoneNumber) {
-        Log.v(TAG, "Sending text message to friend: " + friendObject.getName());
+    private void sendTextMessageToFriend(String friendsPhoneNumber) {
+        Log.v(TAG, "Sending text message to friend: " + myFriendObject.getName());
         String newMsg = "I am nearing your location. (Now ending trip and automatic text notifications)";
         Toast.makeText(this, "Notifying: " + friendsPhoneNumber, Toast.LENGTH_SHORT).show();
         SmsManager smsManager = SmsManager.getDefault();
-        smsManager.sendTextMessage(myNumber, null, newMsg, null, null);
+        smsManager.sendTextMessage(friendsPhoneNumber, null, newMsg, null, null);
         showEndOfTripNotification();
         stopServiceAndLocationUpdates();
     }
@@ -195,7 +196,7 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
         NotificationCompat.Builder mBuilder = new NotificationCompat.Builder(this)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .setContentTitle("End of trip")
-                .setContentText("Notification text has been sent to " + friendObject.getName());
+                .setContentText("Notification text has been sent to " + myFriendObject.getName());
         int mNotificationId = 001;
         NotificationManager manager = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         manager.notify(mNotificationId, mBuilder.build());
@@ -218,10 +219,10 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
     }
 
     private Notification buildNotification(Bitmap icon, PendingIntent pendingIntent) {
-        NotificationCompat.Action stopServiceAction = buildStopAction();
-        String notifyString = "Will notify " + friendObject.getName() + " as you near their location";
+        NotificationCompat.Action stopServiceAction = buildStopServiceAction();
+        String notifyString = "Will notify " + myFriendObject.getName() + " as you near destination.";
         Notification newNotification = new NotificationCompat.Builder(this)
-                .setContentTitle("Your trip has started")
+                .setContentTitle("Trip started: " + myFriendObject.getAddress())
                 .setContentText(notifyString)
                 .setSmallIcon(R.mipmap.ic_launcher)
                 .addAction(stopServiceAction)
@@ -231,12 +232,12 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
         return newNotification;
     }
 
-    private NotificationCompat.Action buildStopAction() {
+    private NotificationCompat.Action buildStopServiceAction() {
         Intent stopIntent = new Intent(this, TextMessageIntentService.class);
         stopIntent.setAction(STOP_SERVICE_FROM_FOREGROUND);
         PendingIntent pendingIntent = PendingIntent.getService(this, 0, stopIntent, 0);
         NotificationCompat.Action.Builder builder =
-                new NotificationCompat.Action.Builder(R.mipmap.ic_launcher_round, "Stop Trip", pendingIntent);
+                new NotificationCompat.Action.Builder(R.mipmap.ic_launcher_round, "End Trip", pendingIntent);
         return builder.build();
     }
 

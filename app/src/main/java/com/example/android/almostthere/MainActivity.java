@@ -1,19 +1,18 @@
 package com.example.android.almostthere;
 
-import android.Manifest;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
+import android.media.Image;
 import android.net.Uri;
 import android.provider.ContactsContract;
-import android.support.v4.content.ContextCompat;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
 import android.widget.Button;
-import android.widget.EditText;
+import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -34,11 +33,13 @@ import static com.google.android.gms.location.LocationServices.getFusedLocationP
 //TODO: Can cancel foreground service via PendingIntent from the Activity(i.e. triggered by button)
 //The service will not be restarted, it will just read the new intent, so we can send it
 // a STOP_SERVICE_FROM_FOREGROUND action in the intent.
-public class MainActivity extends AppCompatActivity {
+public class MainActivity extends AppCompatActivity implements
+        SelectRiderPhoneNumberDialog.SelectRiderPhoneNumberListener,
+        SelectDestinationDialog.SelectDestinationListener{
 
-    final String MY_API_KEY = "f8bfb68fee434cfd950601fb5152681b";
-    final String BASE_URL = "https://api.opencagedata.com/geocode/v1/";
     final String TAG = "AlmostThereApp";
+    final String BASE_URL = "https://api.opencagedata.com/geocode/v1/";
+    final String MY_API_KEY = "f8bfb68fee434cfd950601fb5152681b";
 
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 0;
     private static final int MY_PERMISSIONS_READ_SMS = 9;
@@ -46,12 +47,12 @@ public class MainActivity extends AppCompatActivity {
     private static final int PICK_CONTACT_REQUEST = 2;
 
     TextView mTextView;
-    EditText mEditText;
-    Button convertAddressToGpsButton, chooseContactButton, startTripButton;
+    Button startTripButton, chooseRiderButton, chooseDestinationButton;
 
     private Location friendsLocation = null;
-    private String friendsPhoneNumber;
-    private String friendsName;
+    private String friendsPhoneNumber, friendsName, friendsAddress;
+    TextView phoneNumberTextView, addressInfoTextView;
+    ImageView questionMarkImageView;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -60,6 +61,7 @@ public class MainActivity extends AppCompatActivity {
 
         initTextViewsAndButtons();
         setButtonOnClickListeners();
+
         PermissionRequest mPermissionRequest = new PermissionRequest();
         mPermissionRequest.checkForSendSmsPermissions(this);
         mPermissionRequest.checkForReadSmsPermissions(this);
@@ -67,34 +69,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initTextViewsAndButtons() {
-        mTextView = (TextView) findViewById(R.id.text_view_1);
-        mEditText = (EditText) findViewById(R.id.edit_text_view);
-        convertAddressToGpsButton = (Button) findViewById(R.id.search_button);
-        chooseContactButton = (Button) findViewById(R.id.choose_contact_button);
+        phoneNumberTextView = (TextView) findViewById(R.id.phone_info_text_view);
+        addressInfoTextView = (TextView) findViewById(R.id.address_info_text_view);
         startTripButton = (Button) findViewById(R.id.start_trip_button);
+        chooseRiderButton = (Button) findViewById(R.id.enter_rider_info_button);
+        chooseDestinationButton = (Button) findViewById(R.id.enter_destination_info_button);
+        questionMarkImageView = (ImageView) findViewById(R.id.question_mark_image_view);
     }
 
     private void setButtonOnClickListeners() {
-        convertAddressToGpsButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                String address = mEditText.getText().toString();
-                if ( address.equals("")) return;
-                fetchGpsCoordinatesFromAddress(address);
-             }
-        });
-        chooseContactButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View view) {
-                if(ContextCompat.checkSelfPermission(view.getContext(), Manifest.permission.READ_CONTACTS)
-                        != PackageManager.PERMISSION_GRANTED){
-                    Toast.makeText(MainActivity.this, "We need Read Contacts permission", Toast.LENGTH_SHORT).show();
-                }else{
-                    Intent intent = new Intent(Intent.ACTION_PICK, ContactsContract.Contacts.CONTENT_URI);
-                    startActivityForResult(intent, PICK_CONTACT_REQUEST);
-                }
-            }
-        });
         startTripButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -106,87 +89,58 @@ public class MainActivity extends AppCompatActivity {
                 }
             }
         });
-    }
-
-    private void setUpAndStartForegroundService() {
-        Intent myIntent = new Intent(this, TextMessageIntentService.class);
-        myIntent.setAction(TextMessageIntentService.START_LOCATION_UPDATES);
-        myIntent.putExtra(TextMessageIntentService.FRIENDS_LOCATION, friendsLocation);
-        myIntent.putExtra(TextMessageIntentService.FRIENDS_PHONE_NUMBER, friendsPhoneNumber);
-        myIntent.putExtra(TextMessageIntentService.FRIENDS_NAME, friendsName);
-        startService(myIntent);
-    }
-
-    private void fetchGpsCoordinatesFromAddress(String addressToQuery) {
-        OpenCageApiService service = createOpenCageApiServiceInstance();
-        String formattedAddressString = formatAddressProperly(addressToQuery);
-        Call<Result> call = service.getGeoCodedLocation(MY_API_KEY, formattedAddressString);
-        call.enqueue(new Callback<Result>() {
+        chooseRiderButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onResponse(Call<Result> call, Response<Result> response) {
-                if (response.body() == null) {
-                    int code = response.code();
-                    Toast.makeText(MainActivity.this, "Response is null.Problem!", Toast.LENGTH_SHORT).show();
-                    Toast.makeText(MainActivity.this, "Response code: " + code, Toast.LENGTH_SHORT).show();
-                    Log.v(TAG, response.message());
-                    Log.v(TAG, response.errorBody().toString());
-                    Log.v(TAG, "Request Url: " + call.request().url().toString());
-                } else {
-                    loadResponse(response);
-                    Log.v(TAG, "Url called is:" + call.request().url().toString());
-                }
+            public void onClick(View view) {
+                setUpAndStartChooseRiderDialog();
             }
+        });
+        chooseDestinationButton.setOnClickListener(new View.OnClickListener() {
             @Override
-            public void onFailure(Call<Result> call, Throwable t) {
-                Toast.makeText(MainActivity.this, "Failure!", Toast.LENGTH_SHORT).show();
-                Log.e(TAG, t.toString());
+            public void onClick(View view) {
+                setUpAndStartChooseDestinationDialog();
+            }
+        });
+        questionMarkImageView.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                setUpAndStartQuestionMarkDialog();
             }
         });
     }
 
-    private OpenCageApiService createOpenCageApiServiceInstance() {
-        Retrofit retrofit = new Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .addConverterFactory(GsonConverterFactory.create())
-                .build();
-        return retrofit.create(OpenCageApiService.class);
+    private void setUpAndStartQuestionMarkDialog() {
+        Toast.makeText(this, "This will be a info/helper box when clicked", Toast.LENGTH_SHORT).show();
     }
 
-    private String formatAddressProperly(String addressToQuery) {
-        String replacedSpacesString = addressToQuery.replace(' ', '+');
-        String secondReplacedString = replacedSpacesString.replace(",", "%2C");
-        Log.v(TAG, "The reformatted string is: " + secondReplacedString);
-        return secondReplacedString;
+    private void setUpAndStartChooseDestinationDialog() {
+        SelectDestinationDialog selectDestinationDialog = new SelectDestinationDialog();
+        selectDestinationDialog.setmListener(this);
+        selectDestinationDialog.show(getFragmentManager(), "selectDestinationDialog");
     }
 
-    private void loadResponse(Response<Result> response) {
-        if (response != null) {
-            Geometry geometryObject = extractGeometryFromResultFromResponse(response);
-            Double latitude = geometryObject.getLat();
-            Double longitude = geometryObject.getLng();
-            postLatLongsIfExist(latitude, longitude);
-        } else {
-            Toast.makeText(MainActivity.this, "problem occurred", Toast.LENGTH_SHORT).show();
-        }
+    private void setUpAndStartChooseRiderDialog() {
+        SelectRiderPhoneNumberDialog selectNumberDialog = new SelectRiderPhoneNumberDialog();
+        selectNumberDialog.setmListener(this);
+        selectNumberDialog.show(getFragmentManager(), "selectPhoneNumberDialog");
     }
 
-    private Geometry extractGeometryFromResultFromResponse(Response<Result> response) {
-        Result resultFromResponse = response.body();
-        String code = resultFromResponse.getStatus().getCode().toString();
-        mTextView.setText("The response code is: " + code);
-        resultFromResponse = response.body();
-        Result_ result_ = resultFromResponse.getResults().get(0);
-        return result_.getGeometry();
+    private void setUpAndStartForegroundService() {
+        Intent myIntent = new Intent(this, TextMessageIntentService.class);
+        setActionAndExtrasForMyIntent(myIntent);
+        startService(myIntent);
     }
 
-    private void postLatLongsIfExist(Double latitude, Double longitude) {
-        if (latitude != null && longitude != null) {
-            String latLngResult = String.format("Latitude:%f \n Longitude:%f", latitude, longitude);
-            mTextView.setText(latLngResult);
-            friendsLocation = new Location("C");
-            friendsLocation.setLatitude(latitude);
-            friendsLocation.setLongitude(longitude);
-        }
+    private void setActionAndExtrasForMyIntent(Intent myIntent) {
+        myIntent.setAction(TextMessageIntentService.START_LOCATION_UPDATES);
+        //Friends location is set YES
+        myIntent.putExtra(TextMessageIntentService.FRIENDS_LOCATION, friendsLocation);
+        //Friends Phone Number is set YES
+        myIntent.putExtra(TextMessageIntentService.FRIENDS_PHONE_NUMBER, friendsPhoneNumber);
+        //Friends Name is set YES
+        myIntent.putExtra(TextMessageIntentService.FRIENDS_NAME, friendsName);
+        //Friends address is set YES
+        myIntent.putExtra(TextMessageIntentService.FRIENDS_ADDRESS, friendsAddress);
     }
 
     @Override
@@ -226,67 +180,94 @@ public class MainActivity extends AppCompatActivity {
     }
 
     @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        if(requestCode == PICK_CONTACT_REQUEST && resultCode == RESULT_OK){
-            Uri uriContact = data.getData();
-            String phoneNumberRetrieved = retrieveContactNumber(uriContact);
-            String contactNameRetrieved = retrieveContactsName(uriContact);
-            String msg = String.format("ContactName: %s \nContact Number: %s",
-                    contactNameRetrieved, phoneNumberRetrieved);
-            mTextView.setText(msg);
-            friendsPhoneNumber = phoneNumberRetrieved;
-            friendsName = contactNameRetrieved;
-        }
+    public void onDialogSelectPhoneNumberPositiveClick(String phoneNumber, String name) {
+        Toast.makeText(this, "Positive Button Clicked in Dialog", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Name: " + name, Toast.LENGTH_SHORT).show();
+        phoneNumberTextView.setText("Phone Number entered: " + phoneNumber);
+        friendsPhoneNumber = phoneNumber;
+        friendsName = name;
     }
 
-    private String retrieveContactsName(Uri uriContact) {
-        String contactName = null;
-        Cursor cursor = getContentResolver().query(uriContact, null, null, null, null);
-        if(cursor.moveToFirst()){
-            contactName = cursor.getString(cursor.getColumnIndex(ContactsContract.Contacts.DISPLAY_NAME));
-        }
-        cursor.close();
-        return contactName;
+    @Override
+    public void onDialogSelectDestinationPositiveClick(String address, String distance) {
+        //TODO: PASS DISTANCE TO INTENT SERVICE
+        Toast.makeText(this, "Destination Positive Click!", Toast.LENGTH_SHORT).show();
+        friendsAddress = address;
+        fetchGpsCoordinatesFromAddress(address);
     }
 
-    /**
-     * Stole this function from a github example. It works!
-     * https://gist.github.com/evandrix/7058235
-     * All I can tell is that it uses Cursors, kinda like SqLite
-     * TODO: learn ContentResolvers
-     * this link may come in handy:
-     * https://developer.android.com/training/basics/intents/result.html
-     */
-    private String retrieveContactNumber(Uri uriContact) {
-        String contactNumber = null;
-        String contactId = null;
-        Cursor cursorId = getContentResolver().query(uriContact,
-                new String[]{ContactsContract.Contacts._ID},
-                null, null, null);
-        if(cursorId.moveToFirst()){
-            contactId = cursorId.getString(cursorId.getColumnIndex(ContactsContract.Contacts._ID));
-        }
-        cursorId.close();
-        Log.v(TAG, "Contact ID: " + contactId);
-        //using the ContactId we now get the contact phone number
-        Cursor cursorPhone = getContentResolver().query(
-                ContactsContract.CommonDataKinds.Phone.CONTENT_URI,
-                new String[]{ContactsContract.CommonDataKinds.Phone.NUMBER},
-                //this looks similar to a SQL statement
-                ContactsContract.CommonDataKinds.Phone.CONTACT_ID + " = ? AND " +
-                        ContactsContract.CommonDataKinds.Phone.TYPE + " = " +
-                        /*this returns MOBILE number, not WORK, or HOME, which is fine
-                        because only MOBILE numbers can receive texts. */
-                        ContactsContract.CommonDataKinds.Phone.TYPE_MOBILE,
-                new String[]{contactId}, null);
-        if(cursorPhone.moveToFirst()){
-            contactNumber = cursorPhone
-                    .getString(cursorPhone.getColumnIndex(ContactsContract.CommonDataKinds.Phone.NUMBER));
-        }
-        cursorPhone.close();
-        return contactNumber;
+    private void fetchGpsCoordinatesFromAddress(String addressToQuery) {
+        OpenCageApiService service = createOpenCageApiServiceInstance();
+        String formattedAddressString = formatAddressProperly(addressToQuery);
+        Call<Result> call = service.getGeoCodedLocation(MY_API_KEY, formattedAddressString);
+        call.enqueue(new Callback<Result>() {
+            @Override
+            public void onResponse(Call<Result> call, Response<Result> response) {
+                if (response.body() == null) {
+                    int code = response.code();
+                    Toast.makeText(MainActivity.this, "Response is null.Problem!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(MainActivity.this, "Response code: " + code, Toast.LENGTH_SHORT).show();
+                    Log.v(TAG, response.message());
+                    Log.v(TAG, response.errorBody().toString());
+                    Log.v(TAG, "Request Url: " + call.request().url().toString());
+                } else {
+                    loadResponseFromOpenCageApi(response);
+                    Log.v(TAG, "Url called is:" + call.request().url().toString());
+                }
+            }
+            @Override
+            public void onFailure(Call<Result> call, Throwable t) {
+                Toast.makeText(MainActivity.this, "Failure!", Toast.LENGTH_SHORT).show();
+                Log.e(TAG, t.toString());
+            }
+        });
     }
 
+    private OpenCageApiService createOpenCageApiServiceInstance() {
+        Retrofit retrofit = new Retrofit.Builder()
+                .baseUrl(BASE_URL)
+                .addConverterFactory(GsonConverterFactory.create())
+                .build();
+        return retrofit.create(OpenCageApiService.class);
+    }
+    private String formatAddressProperly(String addressToQuery) {
+        String replacedSpacesString = addressToQuery.replace(' ', '+');
+        String secondReplacedString = replacedSpacesString.replace(",", "%2C");
+        Log.v(TAG, "The reformatted string is: " + secondReplacedString);
+        return secondReplacedString;
+    }
+
+    private void loadResponseFromOpenCageApi(Response<Result> response) {
+        if (response != null) {
+            Geometry geometryObject = extractGeometryFromResultFromResponse(response);
+            Double latitude = geometryObject.getLat();
+            Double longitude = geometryObject.getLng();
+            postLatLongsIfExist(latitude, longitude);
+        } else {
+            Toast.makeText(this, "problem occurred", Toast.LENGTH_SHORT).show();
+        }
+    }
+    private Geometry extractGeometryFromResultFromResponse(Response<Result> response) {
+        Result resultFromResponse = response.body();
+        String code = resultFromResponse.getStatus().getCode().toString();
+        //mTextView.setText("The response code is: " + code);
+        resultFromResponse = response.body();
+        Result_ result_ = resultFromResponse.getResults().get(0);
+        return result_.getGeometry();
+    }
+
+    private void postLatLongsIfExist(Double latitude, Double longitude) {
+        if (latitude != null && longitude != null) {
+            String latLngResult = String.format("Latitude:%f \n Longitude:%f", latitude, longitude);
+            //mTextView.setText(latLngResult);
+            addressInfoTextView.setText("\nAddress is: " + friendsAddress);
+            addressInfoTextView.append("\nGPS coordinates are set");
+            addressInfoTextView.append(latLngResult);
+            friendsLocation = new Location("C");
+            friendsLocation.setLatitude(latitude);
+            friendsLocation.setLongitude(longitude);
+        }
+    }
     interface OpenCageApiService {
         //okay, since I am encoding the string myself, I need to include "encode = true".
         @GET("json")
