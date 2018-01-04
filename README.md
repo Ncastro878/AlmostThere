@@ -15,7 +15,7 @@ This was my very first app idea and when I first tried to build it after 2 days 
 
 **</Background Info>**
 
-Concepts/Libraries/Services used and learned building this:
+**Concepts/Libraries/Services used and learned building this:**
 
 -OpenCageData GeoCoder API service
 
