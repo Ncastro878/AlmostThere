@@ -1,6 +1,7 @@
 package com.example.android.almostthere;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.location.Location;
@@ -45,6 +46,7 @@ public class MainActivity extends AppCompatActivity implements
     private static final int MY_PERMISSIONS_READ_SMS = 9;
     private static final int MY_PERMISSIONS_READ_CONTACTS = 1;
     private static final int PICK_CONTACT_REQUEST = 2;
+    public static int sharedPreferencesCount = 0;
 
     TextView mTextView;
     Button startTripButton, chooseRiderButton, chooseDestinationButton;
@@ -53,6 +55,8 @@ public class MainActivity extends AppCompatActivity implements
     private String friendsPhoneNumber, friendsName, friendsAddress;
     TextView phoneNumberTextView, addressInfoTextView;
     ImageView questionMarkImageView;
+    SharedPreferences addressPreferences;
+    SharedPreferences.Editor addressPreferencesEditor;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -61,6 +65,8 @@ public class MainActivity extends AppCompatActivity implements
 
         initTextViewsAndButtons();
         setButtonOnClickListeners();
+        addressPreferences = getPreferences(MODE_PRIVATE);
+        addressPreferencesEditor = addressPreferences.edit();
 
         PermissionRequest mPermissionRequest = new PermissionRequest();
         mPermissionRequest.checkForSendSmsPermissions(this);
@@ -84,6 +90,12 @@ public class MainActivity extends AppCompatActivity implements
                 if(friendsLocation != null ){
                     Toast.makeText(MainActivity.this, "Trip has started", Toast.LENGTH_SHORT).show();
                     setUpAndStartForegroundService();
+                    //use sharedPrefCount to cycle thru 0->10 and limit address history to 10 items
+                    //in my shared preferences
+                    addressPreferencesEditor.putString(Integer.toString(sharedPreferencesCount)
+                            ,friendsAddress);
+                    addressPreferencesEditor.commit();
+                    sharedPreferencesCount =  ++sharedPreferencesCount % 10;
                 }else{
                     Toast.makeText(MainActivity.this, "Locations are null!", Toast.LENGTH_SHORT).show();
                 }

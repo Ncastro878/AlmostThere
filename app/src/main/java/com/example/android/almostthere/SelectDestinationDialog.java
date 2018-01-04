@@ -7,7 +7,6 @@ import android.app.DialogFragment;
 import android.content.DialogInterface;
 import android.location.Location;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.widget.AdapterView;
@@ -17,23 +16,12 @@ import android.widget.EditText;
 import android.widget.Spinner;
 import android.widget.Toast;
 
-import com.example.android.almostthere.api_results.Geometry;
-import com.example.android.almostthere.api_results.Result;
-import com.example.android.almostthere.api_results.Result_;
-
-import retrofit2.Call;
-import retrofit2.Callback;
-import retrofit2.Response;
-import retrofit2.Retrofit;
-import retrofit2.converter.gson.GsonConverterFactory;
-import retrofit2.http.GET;
-import retrofit2.http.Query;
-
 /**
  * Created by nick on 12/22/2017.
  */
 
-public class SelectDestinationDialog extends DialogFragment{
+public class SelectDestinationDialog extends DialogFragment
+        implements RecentAddressesDialog.RecentAddressListener{
 
     private final String TAG = "SelectDestinationDialog";
 
@@ -53,6 +41,7 @@ public class SelectDestinationDialog extends DialogFragment{
     SelectDestinationListener mListener;
     Spinner mSpinner;
     EditText destinationEditText = null;
+    Button addressHistoryButton;
 
     @Override
     public Dialog onCreateDialog(Bundle savedInstanceState) {
@@ -60,8 +49,10 @@ public class SelectDestinationDialog extends DialogFragment{
         LayoutInflater inflater = getActivity().getLayoutInflater();
         View view = inflater.inflate(R.layout.choose_destination_layout, null);
         mSpinner = (Spinner) view.findViewById(R.id.distance_spinner);
+        addressHistoryButton = (Button) view.findViewById(R.id.history_button);
         destinationEditText = (EditText) view.findViewById(R.id.destination_edit_text);
         initSpinner();
+        initHistoryButton();
 
         builder.setView(view)
                 .setTitle("Enter Address Info")
@@ -84,6 +75,21 @@ public class SelectDestinationDialog extends DialogFragment{
         return builder.create();
     }
 
+    private void initHistoryButton() {
+        addressHistoryButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                setUpAndStartRecentAddressDialog();
+            }
+        });
+    }
+
+    private void setUpAndStartRecentAddressDialog() {
+        RecentAddressesDialog dialog = new RecentAddressesDialog();
+        dialog.setRecentAddressListener(this);
+        dialog.show(getFragmentManager(),"RecentAddressDialog");
+    }
+
     private void initSpinner() {
         ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource
                 (getActivity(), R.array.distances_array, android.R.layout.simple_spinner_item);
@@ -104,4 +110,8 @@ public class SelectDestinationDialog extends DialogFragment{
         });
     }
 
+    @Override
+    public void addressSelected(String selectedAddress) {
+        destinationEditText.setText(selectedAddress);
+    }
 }
