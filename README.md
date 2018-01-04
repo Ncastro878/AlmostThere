@@ -33,3 +33,5 @@ restricted with new Android Oreo update.
 -Broadcast Receiver to read then send automatic text message replies with distance
 
 -Notification Manager and notifications. 
+
+-Shared Preferences
