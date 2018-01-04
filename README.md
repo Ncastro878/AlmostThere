@@ -29,7 +29,7 @@ This was my very first app idea and when I first tried to build it after 2 days 
 
 -~Using a bounded service from which to run the Location Requests~
 
--Using a foreground service to run Location updates/requests(on Main Thread), since location updates on background threads are heavily
+-Using a foreground service(over a bounded/background service) to run Location updates/requests(on Main Thread), since location updates on background threads are heavily
 restricted with new Android Oreo update.
 
 -Broadcast Receiver to read then send automatic text message replies with distance
