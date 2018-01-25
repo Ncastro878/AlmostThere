@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto">
+    <item android:title="permssions_check"
+        android:icon="@mipmap/check_mark"
+        android:id="@+id/permissions_check"
+        app:showAsAction="always" />
+    <item android:id="@+id/help_item"
+        android:title="Help" />
+    <item android:id="@+id/info_item"
+        android:title="Info" />
+</menu>
