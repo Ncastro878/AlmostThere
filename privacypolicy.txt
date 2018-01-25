@@ -1,0 +1,4 @@
+Privacy-relevant Android permissions requested by this app
+READ-CONTACTS
+Used for permissions that are associated with accessing contacts in order to retrieve phone numbers.
+This permission allows this application to make entering phone numbers easier and more convenient for our users, so that they may begin their trip quickly and seamlessly.
