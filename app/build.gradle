@@ -1,5 +1,12 @@
 apply plugin: 'com.android.application'
 
+repositories {
+    mavenCentral()
+    maven() {
+        url "https://oss.sonatype.org/content/repositories/snapshots"
+    }
+}
+
 android {
     compileSdkVersion 26
     buildToolsVersion "26.0.2"
@@ -7,7 +14,7 @@ android {
         applicationId "com.nickrcastro.android.almostthere"
         minSdkVersion 15
         targetSdkVersion 26
-        versionCode 3
+        versionCode 4
         versionName "1.0"
         testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
     }
@@ -34,5 +41,8 @@ dependencies {
     compile 'com.squareup.retrofit2:converter-gson:2.3.0'
     compile 'com.google.android.gms:play-services:11.0.4'
     //    compile 'com.google.android.gms:play-services-location:11.6.0'
+    compile ('com.github.worker8:tourguide:1.0.18-SNAPSHOT@aar') {
+        transitive=true
+    }
 
 }

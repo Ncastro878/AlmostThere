@@ -95,10 +95,10 @@
         app:layout_constraintHorizontal_bias="0.436" />
 
     <ImageView
-        android:id="@+id/question_mark_image_view"
+        android:id="@+id/map_icon"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:srcCompat="@mipmap/help_icon"
+        app:srcCompat="@mipmap/map_icon"
         android:layout_marginRight="8dp"
         app:layout_constraintRight_toRightOf="parent"
         android:layout_marginLeft="8dp"

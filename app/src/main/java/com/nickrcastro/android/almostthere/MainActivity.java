@@ -3,18 +3,27 @@ package com.nickrcastro.android.almostthere;
 import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
+import android.content.BroadcastReceiver;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
+import android.graphics.Color;
 import android.graphics.drawable.Drawable;
 import android.location.Location;
+import android.net.Uri;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
+import android.view.animation.AlphaAnimation;
+import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -31,6 +40,12 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
+import tourguide.tourguide.ChainTourGuide;
+import tourguide.tourguide.Overlay;
+import tourguide.tourguide.Pointer;
+import tourguide.tourguide.Sequence;
+import tourguide.tourguide.ToolTip;
+import tourguide.tourguide.TourGuide;
 
 import static android.R.attr.name;
 import static android.R.attr.phoneNumber;
@@ -51,14 +66,26 @@ public class MainActivity extends AppCompatActivity implements
     final String TAG = "AlmostThereApp";
     final String BASE_URL = "https://api.opencagedata.com/geocode/v1/";
     final String MY_API_KEY = "f8bfb68fee434cfd950601fb5152681b";
-    Button startTripButton, chooseRiderButton, chooseDestinationButton, stopTripButton;
+    public Button startTripButton, chooseRiderButton, chooseDestinationButton, stopTripButton;
     TextView phoneNumberTextView, addressInfoTextView;
-    ImageView questionMarkImageView;
+    ImageView mapIcon;
     SharedPreferences addressPreferences;
     SharedPreferences.Editor addressPreferencesEditor;
     private Location friendsLocation = null;
     private String friendsPhoneNumber, friendsName, friendsAddress;
     private float destinationRadius;
+
+    private BroadcastReceiver myReceiver = new BroadcastReceiver(){
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            Toast.makeText(context, "Broadcast received", Toast.LENGTH_SHORT).show();
+            String message = intent.getStringExtra("change-button");
+            if(message.equals("true") ){
+                startTripButton.setVisibility(View.VISIBLE);
+                stopTripButton.setVisibility(GONE);
+            }
+        }
+    };
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -71,7 +98,7 @@ public class MainActivity extends AppCompatActivity implements
         addressPreferencesEditor = addressPreferences.edit();
 
         PermissionRequest mPermissionRequest = new PermissionRequest();
-        /** Lets try the multple permissions
+        /** Lets try the multiple permissions
         mPermissionRequest.checkForSendSmsPermissions(this);
         mPermissionRequest.checkForReadSmsPermissions(this);
         mPermissionRequest.checkForReadContactsPermissions(this);
@@ -79,6 +106,24 @@ public class MainActivity extends AppCompatActivity implements
         mPermissionRequest.checkForFineLocationPermissions(this);
          */
         mPermissionRequest.requestMultiplePermissions(this);
+
+        LocalBroadcastManager.getInstance(this).registerReceiver(myReceiver,
+                new IntentFilter("destination-reached"));
+
+        MyTourGuide.runTourGuide(this);
+    }
+
+    @Override
+    protected void onResume() {
+        super.onResume();
+        LocalBroadcastManager.getInstance(this).registerReceiver(myReceiver,
+                new IntentFilter("destination-reached"));
+    }
+
+    @Override
+    protected void onPause() {
+        LocalBroadcastManager.getInstance(this).unregisterReceiver(myReceiver);
+        super.onPause();
     }
 
     private void initTextViewsAndButtons() {
@@ -87,7 +132,7 @@ public class MainActivity extends AppCompatActivity implements
         startTripButton = (Button) findViewById(R.id.start_trip_button);
         chooseRiderButton = (Button) findViewById(R.id.enter_rider_info_button);
         chooseDestinationButton = (Button) findViewById(R.id.enter_destination_info_button);
-        questionMarkImageView = (ImageView) findViewById(R.id.question_mark_image_view);
+        mapIcon = (ImageView) findViewById(R.id.map_icon);
         stopTripButton = (Button) findViewById(R.id.stop_trip_button);
     }
 
@@ -108,7 +153,7 @@ public class MainActivity extends AppCompatActivity implements
                     stopTripButton.setVisibility(View.VISIBLE);
                  }else{
                     Toast.makeText(MainActivity.this, "Choose a Contact AND Location!", Toast.LENGTH_SHORT).show();
-                }
+                  }
             }
         });
         chooseRiderButton.setOnClickListener(new View.OnClickListener() {
@@ -123,10 +168,11 @@ public class MainActivity extends AppCompatActivity implements
                 setUpAndStartChooseDestinationDialog();
             }
         });
-        questionMarkImageView.setOnClickListener(new View.OnClickListener() {
+        mapIcon.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
                 setUpAndStartQuestionMarkDialog();
+                verifyAddressWithGoogleMaps();
             }
         });
         stopTripButton.setOnClickListener(new View.OnClickListener() {
@@ -140,6 +186,24 @@ public class MainActivity extends AppCompatActivity implements
                 showEndedTripEarlyNotification();
             }
         });
+    }
+
+
+    private void verifyAddressWithGoogleMaps() {
+        if(friendsLocation == null){
+            Toast.makeText(this, "Enter an address please!", Toast.LENGTH_SHORT).show();
+            return;
+        }
+        String myLat = String.valueOf(friendsLocation.getLatitude());
+        String myLong = String.valueOf(friendsLocation.getLongitude());
+        String name = friendsName == null ?  "Friend" : friendsName;
+        String gps2 = String.format("geo:0,0?q=%s,%s(%s)", myLat, myLong, name);
+        Uri mapUri = Uri.parse(gps2);
+        Intent intent = new Intent(Intent.ACTION_VIEW);
+        intent.setData(mapUri);
+        if (intent.resolveActivity(getPackageManager()) != null) {
+            startActivity(intent);
+        }
     }
 
     private void showEndedTripEarlyNotification() {

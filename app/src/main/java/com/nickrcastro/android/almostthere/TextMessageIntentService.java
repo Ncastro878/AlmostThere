@@ -16,7 +16,9 @@ import android.provider.Telephony;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.NotificationCompat;
+import android.support.v4.content.LocalBroadcastManager;
 import android.telephony.SmsManager;
+import android.util.Log;
 import android.widget.Toast;
 
 import com.google.android.gms.location.FusedLocationProviderClient;
@@ -174,10 +176,8 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
     }
 
     private void checkDistanceBetweenYouAndFriend() {
-        //Log.v(TAG, "Checking distance between you and friend. ");
         float distanceBetween = myCurrentLocation.distanceTo(myFriendObject.getLocation());
         lastCalculatedDistance = distanceBetween;
-        //TODO: MAKE DISTANCE SELECTED FROM DROPDOWN
         if (distanceBetween < (METERS_IN_A_MILE * myFriendObject.getDistance() )) {
             Toast.makeText(this, "You are within distance of friends location.", Toast.LENGTH_SHORT).show();
             sendTextMessageToFriend(myFriendObject.getPhoneNumber());
@@ -207,9 +207,17 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
 
     private void stopServiceAndLocationUpdates() {
         mFusedLocationProviderClient.removeLocationUpdates(mLocationCallback);
+        switchStartAndStopButtonsViaIntent();
         stopForeground(true);
         stopSelf();
         //Log.v(TAG, "Stopping background textMsg service");
+    }
+
+    private void switchStartAndStopButtonsViaIntent() {
+        Intent intent = new Intent("destination-reached");
+        intent.putExtra("change-button","true");
+        Log.v("TextMessageIntent", "Broadcast sent!");
+        LocalBroadcastManager.getInstance(this).sendBroadcast(intent);
     }
 
     private void showForegroundNotification() {
@@ -246,6 +254,7 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
 
     @Override
     public void onDestroy() {
+        //TODO PROBLEM.
         unregisterReceiver(mTextMsgBroadcastReceiver);
         Toast.makeText(this, "Service has been destroyed.", Toast.LENGTH_SHORT).show();
         super.onDestroy();
