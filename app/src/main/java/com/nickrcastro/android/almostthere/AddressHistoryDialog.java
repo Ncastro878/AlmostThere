@@ -24,7 +24,7 @@ package com.nickrcastro.android.almostthere;
  * Created by nick on 1/3/2018.
  */
 
-public class RecentAddressesDialog extends DialogFragment {
+public class AddressHistoryDialog extends DialogFragment {
 
     ListView addressHistoryListView;
     RecentAddressListener mRecentAddressListener;
@@ -61,7 +61,8 @@ public class RecentAddressesDialog extends DialogFragment {
     }
 
     private void populateAddressHistoryTextView() {
-        SharedPreferences sharedPrefs = getActivity().getPreferences(0);
+        SharedPreferences sharedPrefs = getActivity()
+                .getSharedPreferences(MainActivity.MY_ADDRESS_HISTORY,Context.MODE_PRIVATE);
         int numOfAddress = sharedPrefs.getAll().size();
         List<String> addressList = new ArrayList<>();
         for(int i = 0; i < numOfAddress; i++){

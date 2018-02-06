@@ -1,6 +1,5 @@
 package com.nickrcastro.android.almostthere;
 
-import android.app.ActivityManager;
 import android.app.AlertDialog;
 import android.app.NotificationManager;
 import android.content.BroadcastReceiver;
@@ -9,21 +8,16 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
-import android.graphics.Color;
-import android.graphics.drawable.Drawable;
 import android.location.Location;
 import android.net.Uri;
 import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
-import android.view.Gravity;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
-import android.view.animation.AlphaAnimation;
-import android.view.animation.Animation;
 import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.TextView;
@@ -40,37 +34,29 @@ import retrofit2.Retrofit;
 import retrofit2.converter.gson.GsonConverterFactory;
 import retrofit2.http.GET;
 import retrofit2.http.Query;
-import tourguide.tourguide.ChainTourGuide;
-import tourguide.tourguide.Overlay;
-import tourguide.tourguide.Pointer;
-import tourguide.tourguide.Sequence;
-import tourguide.tourguide.ToolTip;
-import tourguide.tourguide.TourGuide;
 
-import static android.R.attr.name;
-import static android.R.attr.phoneNumber;
-import static android.R.attr.radius;
 import static android.view.View.GONE;
 import static com.google.android.gms.location.LocationServices.getFusedLocationProviderClient;
 import static com.nickrcastro.android.almostthere.TextMessageIntentService.STOP_SERVICE_FROM_FOREGROUND;
 
 public class MainActivity extends AppCompatActivity implements
-        SelectRiderPhoneNumberDialog.SelectRiderPhoneNumberListener,
-        SelectDestinationDialog.SelectDestinationListener{
+        SelectPhoneNumberDialog.SelectRiderPhoneNumberListener,
+        SelectAddressDialog.SelectDestinationListener{
 
+    public static final String MY_ADDRESS_HISTORY = "my-address-history";
+    public static final String TEXT_MSG_TO_SEND = "text-msg-to-send";
+    public static final String FRESH_INSTALL = "fresh-install";
     private static final int MY_PERMISSIONS_REQUEST_SEND_SMS = 0;
     private static final int MY_PERMISSIONS_READ_SMS = 9;
     private static final int MY_PERMISSIONS_READ_CONTACTS = 1;
-    private static final int PICK_CONTACT_REQUEST = 2;
     public static int sharedPreferencesCount = 0;
-    final String TAG = "AlmostThereApp";
     final String BASE_URL = "https://api.opencagedata.com/geocode/v1/";
     final String MY_API_KEY = "f8bfb68fee434cfd950601fb5152681b";
     public Button startTripButton, chooseRiderButton, chooseDestinationButton, stopTripButton;
     TextView phoneNumberTextView, addressInfoTextView;
     ImageView mapIcon;
-    SharedPreferences addressPreferences;
-    SharedPreferences.Editor addressPreferencesEditor;
+    SharedPreferences addressPreferences,textMessageToSendPrefs, freshInstallPrefs;
+    SharedPreferences.Editor addressPreferencesEditor, textMessageToSendPrefEditor;
     private Location friendsLocation = null;
     private String friendsPhoneNumber, friendsName, friendsAddress;
     private float destinationRadius;
@@ -78,8 +64,7 @@ public class MainActivity extends AppCompatActivity implements
     private BroadcastReceiver myReceiver = new BroadcastReceiver(){
         @Override
         public void onReceive(Context context, Intent intent) {
-            Toast.makeText(context, "Broadcast received", Toast.LENGTH_SHORT).show();
-            String message = intent.getStringExtra("change-button");
+             String message = intent.getStringExtra("change-button");
             if(message.equals("true") ){
                 startTripButton.setVisibility(View.VISIBLE);
                 stopTripButton.setVisibility(GONE);
@@ -94,23 +79,48 @@ public class MainActivity extends AppCompatActivity implements
 
         initTextViewsAndButtons();
         setButtonOnClickListeners();
-        addressPreferences = getPreferences(MODE_PRIVATE);
-        addressPreferencesEditor = addressPreferences.edit();
-
-        PermissionRequest mPermissionRequest = new PermissionRequest();
-        /** Lets try the multiple permissions
-        mPermissionRequest.checkForSendSmsPermissions(this);
-        mPermissionRequest.checkForReadSmsPermissions(this);
-        mPermissionRequest.checkForReadContactsPermissions(this);
-        mPermissionRequest.checkForCoarseLocationPermissions(this);
-        mPermissionRequest.checkForFineLocationPermissions(this);
-         */
-        mPermissionRequest.requestMultiplePermissions(this);
-
+        initSharedPreferences();
+        initPermissionsRequest();
         LocalBroadcastManager.getInstance(this).registerReceiver(myReceiver,
                 new IntentFilter("destination-reached"));
+        runTourGuideOnFreshInstall();
+    }
 
-        MyTourGuide.runTourGuide(this);
+    private void runTourGuideOnFreshInstall() {
+        freshInstallPrefs = getSharedPreferences(FRESH_INSTALL, MODE_PRIVATE);
+        String isFreshInstall = freshInstallPrefs.getString("freshInstall","true");
+        if(isFreshInstall == "true"){
+            MyTourGuide.runTourGuide(this);
+            freshInstallPrefs.edit().putString("freshInstall", "false");
+            freshInstallPrefs.edit().apply();
+        }else{
+
+        }
+    }
+
+    private void initPermissionsRequest() {
+        /** Lets try the multiple permissions
+         mPermissionRequest.checkForSendSmsPermissions(this);
+         mPermissionRequest.checkForReadSmsPermissions(this);
+         mPermissionRequest.checkForReadContactsPermissions(this);
+         mPermissionRequest.checkForCoarseLocationPermissions(this);
+         mPermissionRequest.checkForFineLocationPermissions(this);
+         */
+        PermissionRequest mPermissionRequest = new PermissionRequest();
+        mPermissionRequest.requestMultiplePermissions(this);
+    }
+
+    private void initSharedPreferences() {
+        addressPreferences = getSharedPreferences(MY_ADDRESS_HISTORY, MODE_PRIVATE);
+        addressPreferencesEditor = addressPreferences.edit();
+        textMessageToSendPrefs = getSharedPreferences(TEXT_MSG_TO_SEND, MODE_PRIVATE);
+        textMessageToSendPrefEditor = textMessageToSendPrefs.edit();
+        if(textMessageToSendPrefs.getString("1","") == ""){
+            Toast.makeText(this, "it was true", Toast.LENGTH_SHORT).show();
+            textMessageToSendPrefEditor.putString("1", TextMsgToSendDialog.choices[0]);
+            textMessageToSendPrefEditor.commit();
+            Toast.makeText(this, textMessageToSendPrefs.getString("1", "none again"), Toast.LENGTH_SHORT).show();
+        }
     }
 
     @Override
@@ -171,8 +181,7 @@ public class MainActivity extends AppCompatActivity implements
         mapIcon.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
-                setUpAndStartQuestionMarkDialog();
-                verifyAddressWithGoogleMaps();
+                 verifyAddressWithGoogleMaps();
             }
         });
         stopTripButton.setOnClickListener(new View.OnClickListener() {
@@ -187,7 +196,6 @@ public class MainActivity extends AppCompatActivity implements
             }
         });
     }
-
 
     private void verifyAddressWithGoogleMaps() {
         if(friendsLocation == null){
@@ -217,18 +225,14 @@ public class MainActivity extends AppCompatActivity implements
         manager.notify(mNotificationId, mBuilder.build());
     }
 
-    private void setUpAndStartQuestionMarkDialog() {
-        Toast.makeText(this, "Help features coming soon.", Toast.LENGTH_SHORT).show();
-    }
-
     private void setUpAndStartChooseDestinationDialog() {
-        SelectDestinationDialog selectDestinationDialog = new SelectDestinationDialog();
-        selectDestinationDialog.setmListener(this);
-        selectDestinationDialog.show(getFragmentManager(), "selectDestinationDialog");
+        SelectAddressDialog selectAddressDialog = new SelectAddressDialog();
+        selectAddressDialog.setmListener(this);
+        selectAddressDialog.show(getFragmentManager(), "selectAddressDialog");
     }
 
     private void setUpAndStartChooseRiderDialog() {
-        SelectRiderPhoneNumberDialog selectNumberDialog = new SelectRiderPhoneNumberDialog();
+        SelectPhoneNumberDialog selectNumberDialog = new SelectPhoneNumberDialog();
         selectNumberDialog.setmListener(this);
         selectNumberDialog.show(getFragmentManager(), "selectPhoneNumberDialog");
     }
@@ -286,8 +290,7 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onDialogSelectPhoneNumberPositiveClick(FriendObject myFriend) {
-        Toast.makeText(this, "Positive Button Clicked in Dialog", Toast.LENGTH_SHORT).show();
-        Toast.makeText(this, "Name: " + name, Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Name: " + myFriend.getName(), Toast.LENGTH_SHORT).show();
         phoneNumberTextView.setText("Phone Number entered: " + myFriend.getPhoneNumber());
         friendsPhoneNumber = myFriend.getPhoneNumber();
         friendsName = myFriend.getName();
@@ -295,8 +298,6 @@ public class MainActivity extends AppCompatActivity implements
 
     @Override
     public void onDialogSelectDestinationPositiveClick(String address, String distance, float radius) {
-        //TODO: PASS DISTANCE TO INTENT SERVICE
-        Toast.makeText(this, "Destination Positive Click!", Toast.LENGTH_SHORT).show();
         friendsAddress = address;
         destinationRadius = radius;
         fetchGpsCoordinatesFromAddress(address);
@@ -351,8 +352,7 @@ public class MainActivity extends AppCompatActivity implements
     private Geometry extractGeometryFromResultFromResponse(Response<Result> response) {
         Result resultFromResponse = response.body();
         String code = resultFromResponse.getStatus().getCode().toString();
-        //mTextView.setText("The response code is: " + code);
-        resultFromResponse = response.body();
+          resultFromResponse = response.body();
         ApiResults apiResults_ = resultFromResponse.getResults().get(0);
         return apiResults_.getGeometry();
     }
@@ -394,9 +394,25 @@ public class MainActivity extends AppCompatActivity implements
             case R.id.permissions_check:
                 String msg = "This signals if you have granted us all necessary permissions";
                 Toast.makeText(this, msg , Toast.LENGTH_SHORT).show();
+                return true;
+            case R.id.set_message:
+                selectTextMessageToSend();
+                return true;
+            case R.id.tutorial_item:
+                playTutorial();
+                return true;
             default:
                 return super.onOptionsItemSelected(item);
         }
+    }
+
+    private void playTutorial() {
+        MyTourGuide.runTourGuide(this);
+    }
+
+    private void selectTextMessageToSend() {
+        TextMsgToSendDialog dialog = new TextMsgToSendDialog();
+        dialog.show(getFragmentManager(), "select-txt-dialog");
     }
 
     private void buildAlertDialog(String choice) {

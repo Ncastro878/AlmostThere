@@ -28,7 +28,7 @@ import static android.app.Activity.RESULT_OK;
  * Created by nick on 12/22/2017.
  */
 
-public class SelectRiderPhoneNumberDialog extends DialogFragment {
+public class SelectPhoneNumberDialog extends DialogFragment {
 
     public interface SelectRiderPhoneNumberListener {
         void onDialogSelectPhoneNumberPositiveClick(FriendObject friend);

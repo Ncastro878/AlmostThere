@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:orientation="vertical" android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:padding="4dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_gravity="center"
+        android:textStyle="bold"
+        android:textSize="20dp"
+        android:layout_height="wrap_content"
+        android:textColor="#000000"
+        android:text="Current text to send:"
+        android:layout_margin="5dp"/>
+    <TextView
+        android:id="@+id/default_text_to_send"
+        android:layout_width="wrap_content"
+        android:layout_gravity="center"
+        android:layout_height="wrap_content"
+        android:textColor="#000000"
+        android:textSize="15dp"
+        android:text="default text goes here"/>
+    <ListView
+        android:id="@+id/text_to_send_list_view"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"/>
+    <EditText
+        android:id="@+id/custom_text_edit_text"
+        android:layout_margin="3dp"
+        android:layout_gravity="center"
+        android:hint="type your own text to send"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:maxLength="160"
+        android:inputType="text"
+        android:imeOptions="actionDone"/>
+</LinearLayout>

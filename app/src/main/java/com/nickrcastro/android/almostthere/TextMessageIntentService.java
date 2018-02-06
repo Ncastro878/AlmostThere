@@ -99,7 +99,7 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
             initializeMyFriendObject(location, name, phoneNumber, address, distance);
             initAndRegisterTextMsgReceiver();
             startLocationUpdates();
-            Toast.makeText(this, "Service started!", Toast.LENGTH_SHORT).show();
+            Toast.makeText(this, "Trip started!", Toast.LENGTH_SHORT).show();
         } else if (action.equals(STOP_SERVICE_FROM_FOREGROUND)) {
             stopForeground(true);
             stopSelf();
@@ -256,7 +256,7 @@ public class TextMessageIntentService extends Service implements TextMessageBroa
     public void onDestroy() {
         //TODO PROBLEM.
         unregisterReceiver(mTextMsgBroadcastReceiver);
-        Toast.makeText(this, "Service has been destroyed.", Toast.LENGTH_SHORT).show();
+        //Toast.makeText(this, "Service has been destroyed.", Toast.LENGTH_SHORT).show();
         super.onDestroy();
     }
 

@@ -20,10 +20,10 @@ import android.widget.Toast;
  * Created by nick on 12/22/2017.
  */
 
-public class SelectDestinationDialog extends DialogFragment
-        implements RecentAddressesDialog.RecentAddressListener{
+public class SelectAddressDialog extends DialogFragment
+        implements AddressHistoryDialog.RecentAddressListener{
 
-    private final String TAG = "SelectDestinationDialog";
+    private final String TAG = "SelectAddressDialog";
 
     public interface SelectDestinationListener{
         public void onDialogSelectDestinationPositiveClick(String address, String distance, float radius);
@@ -86,7 +86,7 @@ public class SelectDestinationDialog extends DialogFragment
     }
 
     private void setUpAndStartRecentAddressDialog() {
-        RecentAddressesDialog dialog = new RecentAddressesDialog();
+        AddressHistoryDialog dialog = new AddressHistoryDialog();
         dialog.setRecentAddressListener(this);
         dialog.show(getFragmentManager(),"RecentAddressDialog");
     }

@@ -9,4 +9,8 @@
         android:title="Help" />
     <item android:id="@+id/info_item"
         android:title="Info" />
+    <item android:id="@+id/set_message"
+        android:title="Set Message"/>
+    <item android:id="@+id/tutorial_item"
+        android:title="tutorial"/>
 </menu>

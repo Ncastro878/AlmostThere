@@ -13,11 +13,9 @@ public class FriendObject {
     String address;
     float distance;
 
-
     public float getDistance() {return distance;}
 
     public void setDistance(float distance) {this.distance = distance;}
-
 
     public String getAddress() {
         return address;
